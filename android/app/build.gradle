@@ -117,3 +117,10 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Needed to shrink APK with react-native-vector-icons - don't include all the font files
+project.ext.vectoricons = [
+        iconFontNames: [ 'FontAwesome.ttf' ] // Name of the react-native-vector-icons fonts to copy
+]
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+// End of react-native-vector-icons stuff
