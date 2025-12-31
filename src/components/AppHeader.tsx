@@ -2,9 +2,11 @@ import * as React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 
 export default function AppHeader() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -12,7 +14,7 @@ export default function AppHeader() {
       <View style={styles.center}>
         <Text style={styles.title}>Taekwon-Go</Text>
       </View>
-      <TouchableOpacity style={styles.right} onPress={() => console.log('login pressed')}>
+      <TouchableOpacity style={styles.right} onPress={() => navigation.navigate('AccountModal')}>
         <Icon name="user" size={20} color="#222" />
       </TouchableOpacity>
     </View>

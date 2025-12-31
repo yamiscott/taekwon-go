@@ -1,0 +1,25 @@
+export type BeltOption = { value: string; label: string };
+
+export const BELTS: BeltOption[] = [
+  { value: 'white', label: 'White' },
+  { value: 'orange_stripe', label: 'Orange Stripe' },
+  { value: 'purple_stripe', label: 'Purple Stripe' },
+  { value: 'yellow_stripe', label: 'Yellow Stripe' },
+  { value: 'yellow', label: 'Yellow' },
+  { value: 'green_stripe', label: 'Green Stripe' },
+  { value: 'green', label: 'Green' },
+  { value: 'blue_stripe', label: 'Blue Stripe' },
+  { value: 'blue', label: 'Blue' },
+  { value: 'red_stripe', label: 'Red Stripe' },
+  { value: 'red', label: 'Red' },
+  { value: 'black_stripe', label: 'Black Stripe' },
+  { value: 'black_1', label: 'Black 1st Dan' },
+  { value: 'black_2', label: 'Black 2nd Dan' },
+  { value: 'black_3', label: 'Black 3rd Dan' },
+  { value: 'black_4', label: 'Black 4th Dan' },
+  { value: 'black_5', label: 'Black 5th Dan' },
+  { value: 'black_6', label: 'Black 6th Dan' },
+  { value: 'black_7', label: 'Black 7th Dan' },
+  { value: 'black_8', label: 'Black 8th Dan' },
+  { value: 'black_9', label: 'Black 9th Dan' },
+];
