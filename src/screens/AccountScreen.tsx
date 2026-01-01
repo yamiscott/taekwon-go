@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Switch,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Button, useTheme, Avatar } from 'react-native-paper';
@@ -21,7 +23,9 @@ import {
   setDan,
   setMaster,
   setGrandmaster,
+  clearAccount,
 } from '../store/slices/accountSlice';
+import { login, fetchCurrentUser } from '../store/slices/accountSlice';
 import { BELTS } from '../constants/belts';
 
 export default function AccountScreen() {
@@ -30,11 +34,44 @@ export default function AccountScreen() {
   const account = useAppSelector((s) => s.account);
 
   const [edit, setEdit] = useState(false);
-  const [localName, setLocalName] = useState(account.name ?? '');
-  const [localSchool, setLocalSchool] = useState(account.school ?? '');
-  const [localBelt, setLocalBelt] = useState(account.belt ?? '');
+  const [localName, setLocalName] = useState(typeof account.name === 'string' ? account.name : '');
+  const [localSchool, setLocalSchool] = useState(typeof account.school === 'string' ? account.school : '');
+  const [localBelt, setLocalBelt] = useState(typeof account.belt === 'string' ? account.belt : '');
   const [localIsMaster, setLocalIsMaster] = useState(account.isMaster ?? false);
   const [localIsGrandmaster, setLocalIsGrandmaster] = useState(account.isGrandmaster ?? false);
+
+  // Login modal state
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  const isLoggedIn = !!account.token;
+
+  const handleLogin = async () => {
+    setLoginError('');
+    if (!loginEmail || !loginPassword) {
+      setLoginError('Please enter both email and password');
+      return;
+    }
+
+    try {
+      const result = await dispatch(login({ email: loginEmail, password: loginPassword })).unwrap();
+      // Login successful, fetch user data
+      if (result.token) {
+        await dispatch(fetchCurrentUser(result.token)).unwrap();
+      }
+      setShowLoginModal(false);
+      setLoginEmail('');
+      setLoginPassword('');
+    } catch (error) {
+      setLoginError(typeof error === 'string' ? error : 'Login failed');
+    }
+  };
+
+  const handleLogout = () => {
+    dispatch(clearAccount());
+  };
 
   const save = () => {
     dispatch(setName(localName || null));
@@ -53,9 +90,9 @@ export default function AccountScreen() {
   };
 
   const cancel = () => {
-    setLocalName(account.name ?? '');
-    setLocalSchool(account.school ?? '');
-    setLocalBelt(account.belt ?? '');
+    setLocalName(typeof account.name === 'string' ? account.name : '');
+    setLocalSchool(typeof account.school === 'string' ? account.school : '');
+    setLocalBelt(typeof account.belt === 'string' ? account.belt : '');
     setLocalIsMaster(account.isMaster ?? false);
     setLocalIsGrandmaster(account.isGrandmaster ?? false);
     setEdit(false);
@@ -80,6 +117,95 @@ export default function AccountScreen() {
         <Text style={styles.title}>Account</Text>
       </View>
 
+      {/* Login/Logout Status */}
+      <View style={styles.statusCard}>
+        <View style={styles.statusRow}>
+          <View style={[styles.statusDot, isLoggedIn ? styles.statusDotGreen : styles.statusDotRed]} />
+          <Text style={styles.statusText}>
+            {isLoggedIn ? 'Logged In' : 'Logged Out'}
+          </Text>
+        </View>
+        {isLoggedIn ? (
+          <View style={styles.statusInfo}>
+            <Text style={styles.statusEmail}>{typeof account.email === 'string' ? account.email : ''}</Text>
+            <TouchableOpacity onPress={handleLogout}>
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <Button 
+            mode="contained" 
+            onPress={() => setShowLoginModal(true)}
+            style={styles.loginButton}
+          >
+            Log In
+          </Button>
+        )}
+      </View>
+
+      {/* Login Modal */}
+      <Modal
+        visible={showLoginModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLoginModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Log In</Text>
+            
+            <Text style={styles.modalLabel}>Email</Text>
+            <TextInput
+              value={loginEmail}
+              onChangeText={setLoginEmail}
+              style={styles.modalInput}
+              placeholder="your.email@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.modalLabel}>Password</Text>
+            <TextInput
+              value={loginPassword}
+              onChangeText={setLoginPassword}
+              style={styles.modalInput}
+              placeholder="Your password"
+              secureTextEntry
+            />
+
+            {loginError ? (
+              <Text style={styles.errorText}>{loginError}</Text>
+            ) : null}
+
+            {account.loading ? (
+              <ActivityIndicator size="large" style={{ marginVertical: 16 }} />
+            ) : (
+              <>
+                <Button 
+                  mode="contained" 
+                  onPress={handleLogin}
+                  style={styles.modalButton}
+                >
+                  Log In
+                </Button>
+                <Button 
+                  mode="outlined" 
+                  onPress={() => {
+                    setShowLoginModal(false);
+                    setLoginEmail('');
+                    setLoginPassword('');
+                    setLoginError('');
+                  }}
+                  style={styles.modalButton}
+                >
+                  Cancel
+                </Button>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.cardWrapper}>
         <Avatar.Icon size={200} icon="account" style={styles.avatar} />
         {!edit ? (
@@ -87,12 +213,16 @@ export default function AccountScreen() {
             <Button mode="contained" onPress={() => setEdit(true)} style={styles.buttonRight}>
               Edit
             </Button>
-            <Text style={styles.cardHeader}>{account.name ? `${account.name}'s details` : "Student's details"}</Text>
+            <Text style={styles.cardHeader}>{
+              typeof account.name === 'string' && account.name ? `${account.name}'s details` : "Student's details"
+            }</Text>
 
             <View style={styles.colBetween}>
               <View style={{ flexGrow: 1, width: '100%' }}>
                 <Text style={styles.smallLabel}>School</Text>
-                <Text style={[styles.fieldValue, { color: theme.colors.primary }]}>{account.school ?? 'N/A'}</Text>
+                <Text style={[styles.fieldValue, { color: theme.colors.primary }]}>
+                  {typeof account.school === 'string' && account.school ? account.school : 'N/A'}
+                </Text>
               </View>
               <View style={{ flexGrow: 1, width: '100%' }}>
                 <Text style={styles.smallLabel}>Belt</Text>
@@ -187,6 +317,92 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     flexGrow: 1,
+  },
+  statusCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#ddd',
+    alignItems: 'center',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  statusDotGreen: {
+    backgroundColor: '#4CAF50',
+  },
+  statusDotRed: {
+    backgroundColor: '#F44336',
+  },
+  statusText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  statusInfo: {
+    alignItems: 'center',
+  },
+  statusEmail: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  logoutText: {
+    color: '#0066cc',
+    fontSize: 14,
+  },
+  loginButton: {
+    minWidth: 200,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    padding: 12,
+    fontSize: 16,
+  },
+  modalButton: {
+    marginTop: 12,
+  },
+  errorText: {
+    color: '#F44336',
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: 'center',
   },
   cardWrapper: {
     alignItems: 'center',

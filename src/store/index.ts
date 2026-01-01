@@ -17,7 +17,7 @@ const rootReducer = combineReducers({
 const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
-  whitelist: ['account'], // persist only account slice (name and belt)
+  whitelist: ['account'], // persist account slice (user, token, belt, etc.)
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
