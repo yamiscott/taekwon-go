@@ -1,17 +1,38 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import accountReducer from './slices/accountSlice';
 import trainingRecordReducer from './slices/trainingRecordSlice';
 import trainingReducer from './slices/trainingSlice';
 import theoryReducer from './slices/theorySlice';
 
-export const store = configureStore({
-  reducer: {
-    account: accountReducer,
-    trainingRecord: trainingRecordReducer,
-    training: trainingReducer,
-    theory: theoryReducer,
-  },
+import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const rootReducer = combineReducers({
+  account: accountReducer,
+  trainingRecord: trainingRecordReducer,
+  training: trainingReducer,
+  theory: theoryReducer,
 });
+
+const persistConfig = {
+  key: 'root',
+  storage: AsyncStorage,
+  whitelist: ['account'], // persist only account slice (name and belt)
+};
+
+const persistedReducer = persistReducer(persistConfig, rootReducer);
+
+export const store = configureStore({
+  reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+      },
+    }),
+});
+
+export const persistor = persistStore(store);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

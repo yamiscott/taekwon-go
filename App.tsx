@@ -5,7 +5,8 @@ import { Provider } from 'react-redux';
 import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme } from 'react-native-paper';
 import BottomTabs from './src/navigation/BottomTabs';
 import AppHeader from './src/components/AppHeader';
-import store from './src/store';
+import store, { persistor } from './src/store';
+import { PersistGate } from 'redux-persist/integration/react';
 
 const paperTheme = {
   ...PaperDefaultTheme,
@@ -40,9 +41,11 @@ export default function App() {
   return (
     <Provider store={store}>
       <PaperProvider theme={paperTheme}>
-        <NavigationContainer>
-          <RootStack />
-        </NavigationContainer>
+        <PersistGate loading={null} persistor={persistor}>
+          <NavigationContainer>
+            <RootStack />
+          </NavigationContainer>
+        </PersistGate>
       </PaperProvider>
     </Provider>
   );
