@@ -12,7 +12,7 @@ export default function AppHeader() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.left} />
       <View style={styles.center}>
-        <Text style={styles.title}>Taekwon-Go</Text>
+        <Text style={styles.title}>Pocket TKD</Text>
       </View>
       <TouchableOpacity style={styles.right} onPress={() => navigation.navigate('AccountModal')}>
         <Icon name="user" size={20} color="#222" />
