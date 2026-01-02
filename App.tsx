@@ -30,9 +30,11 @@ function RootStack() {
   // Auto-fetch user data on app start if token exists
   useEffect(() => {
     if (token) {
-      dispatch(fetchCurrentUser(token));
+      dispatch(fetchCurrentUser(token)).catch((err) => {
+        console.log('Failed to fetch current user:', err);
+      });
     }
-  }, []); // Run only once on mount
+  }, [token, dispatch]);
 
   return (
     <Stack.Navigator>

@@ -1,4 +1,6 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import RNFS from 'react-native-fs';
+import SHA256 from 'crypto-js/sha256';
 
 // API URL Configuration:
 // - Android Emulator: 'http://10.0.2.2:3000'
@@ -16,6 +18,8 @@ interface AccountState {
   address: string | null;
   email: string | null;
   school: string | null;
+  schoolLogoUrl: string | null; // Temporary store for logo URL to download
+  schoolLogoPath: string | null; // Local cached path to school logo
   belt: string | null; // e.g. 'white', 'orange_stripe', 'black_1', etc.
   dan: number | null; // 1..9 if black belt
   isMaster: boolean;
@@ -39,6 +43,8 @@ const initialState: AccountState = {
   address: null,
   email: null,
   school: null,
+  schoolLogoUrl: null,
+  schoolLogoPath: null,
   belt: null,
   dan: null,
   isMaster: false,
@@ -52,6 +58,50 @@ const initialState: AccountState = {
   token: null,
   loading: false,
   error: null,
+};
+
+// Helper function to download and cache school logo
+const downloadAndCacheSchoolLogo = async (logoUrl: string) => {
+  try {
+    if (!logoUrl || typeof logoUrl !== 'string') {
+      return null;
+    }
+
+    const hash = SHA256(logoUrl).toString().substring(0, 16);
+    const filename = `school-logo-${hash}.png`;
+    const cacheDir = `${RNFS.DocumentDirectoryPath}/schoolLogos`;
+    const filePath = `${cacheDir}/${filename}`;
+
+    const fileExists = await RNFS.exists(filePath);
+    if (fileExists) {
+      return filePath;
+    }
+
+    try {
+      await RNFS.mkdir(cacheDir, { NSURLIsExcludedFromBackupKey: true });
+    } catch (err) {
+      // Directory might already exist, continue
+    }
+
+    const downloadUrl = logoUrl.replace('localhost:3000', '10.0.2.2:3000');
+    
+    try {
+      const downloadResult = await RNFS.downloadFile({
+        fromUrl: downloadUrl,
+        toFile: filePath,
+      }).promise;
+
+      if (downloadResult.statusCode === 200) {
+        return filePath;
+      }
+    } catch (downloadErr) {
+      console.log('Download error:', downloadErr);
+      return null;
+    }
+  } catch (error) {
+    console.log('Failed to download school logo:', error);
+  }
+  return null;
 };
 
 // Login thunk - calls POST /auth/login with email and password
@@ -106,6 +156,51 @@ export const fetchCurrentUser = createAsyncThunk(
   }
 );
 
+// Download and cache school logo thunk
+export const downloadSchoolLogo = createAsyncThunk(
+  'account/downloadSchoolLogo',
+  async (logoUrl: string, { rejectWithValue }) => {
+    try {
+      if (!logoUrl || typeof logoUrl !== 'string') {
+        return rejectWithValue('Invalid logo URL');
+      }
+
+      const hash = SHA256(logoUrl).toString().substring(0, 16);
+      const filename = `school-logo-${hash}.png`;
+      const cacheDir = `${RNFS.DocumentDirectoryPath}/schoolLogos`;
+      const filePath = `${cacheDir}/${filename}`;
+
+      // Check if already cached
+      const fileExists = await RNFS.exists(filePath);
+      if (fileExists) {
+        return filePath;
+      }
+
+      // Create cache directory
+      try {
+        await RNFS.mkdir(cacheDir, { NSURLIsExcludedFromBackupKey: true });
+      } catch (err) {
+        // Directory might already exist, continue
+      }
+
+      // Download the file
+      const downloadUrl = logoUrl.replace('localhost:3000', '10.0.2.2:3000');
+      const downloadResult = await RNFS.downloadFile({
+        fromUrl: downloadUrl,
+        toFile: filePath,
+      }).promise;
+
+      if (downloadResult.statusCode === 200) {
+        return filePath;
+      } else {
+        return rejectWithValue(`Download failed with status ${downloadResult.statusCode}`);
+      }
+    } catch (error) {
+      return rejectWithValue(error instanceof Error ? error.message : 'Download failed');
+    }
+  }
+);
+
 const accountSlice = createSlice({
   name: 'account',
   initialState,
@@ -132,6 +227,12 @@ const accountSlice = createSlice({
     setGrandmaster(state, action: PayloadAction<boolean>) {
       state.localIsGrandmaster = action.payload;
     },
+    setSchoolLogoPath(state, action: PayloadAction<string | null>) {
+      state.schoolLogoPath = action.payload;
+    },
+    setSchoolLogoUrl(state, action: PayloadAction<string | null>) {
+      state.schoolLogoUrl = action.payload;
+    },
     setAccount(state, action: PayloadAction<Partial<AccountState>>) {
       const payload = action.payload;
       if (payload.user !== undefined) state.user = payload.user ?? null;
@@ -148,6 +249,8 @@ const accountSlice = createSlice({
       state.address = null;
       state.email = null;
       state.school = null;
+      state.schoolLogoUrl = null;
+      state.schoolLogoPath = null;
       state.belt = null;
       state.dan = null;
       state.isMaster = false;
@@ -179,6 +282,18 @@ const accountSlice = createSlice({
     // Fetch current user thunk handlers
     builder.addCase(fetchCurrentUser.pending, (state) => {
       state.loading = true;
+
+    // Download school logo thunk handlers
+    builder.addCase(downloadSchoolLogo.pending, (state) => {
+      // Optional: add loading state for logo if needed
+    });
+    builder.addCase(downloadSchoolLogo.fulfilled, (state, action) => {
+      state.schoolLogoPath = action.payload;
+    });
+    builder.addCase(downloadSchoolLogo.rejected, (state, action) => {
+      console.log('Logo download failed:', action.payload);
+      state.schoolLogoPath = null;
+    });
       state.error = null;
     });
     builder.addCase(fetchCurrentUser.fulfilled, (state, action) => {
@@ -191,13 +306,20 @@ const accountSlice = createSlice({
       state.fullName = typeof userData.fullName === 'string' ? userData.fullName : null;
       state.address = typeof userData.address === 'string' ? userData.address : null;
       
-      // Handle school - can be a string or an object with { _id, name }
+      // Handle school - can be a string or an object with { _id, name, logoUrl }
+      let logoUrl: string | null = null;
       if (typeof userData.school === 'string') {
         state.school = userData.school;
       } else if (userData.school && typeof userData.school === 'object' && 'name' in userData.school) {
         state.school = userData.school.name;
+        logoUrl = userData.school.logoUrl || null;
       } else {
         state.school = null;
+      }
+      
+      // Store the logo URL (download will be handled by App.tsx watcher)
+      if (logoUrl) {
+        state.schoolLogoUrl = logoUrl;
       }
       
       // Belt and rank data from server
@@ -209,9 +331,7 @@ const accountSlice = createSlice({
       if (state.belt && state.belt.startsWith('black_')) {
         const num = parseInt(state.belt.split('_')[1], 10);
         state.dan = !Number.isNaN(num) ? num : null;
-      } else {
-        state.dan = null;
-      }
+      } state.dan = null;
     });
     builder.addCase(fetchCurrentUser.rejected, (state, action) => {
       state.loading = false;
@@ -220,5 +340,6 @@ const accountSlice = createSlice({
   },
 });
 
-export const { setUser, setName, setSchool, setBelt, setDan, setMaster, setGrandmaster, setAccount, clearAccount } = accountSlice.actions;
+export const { setUser, setName, setSchool, setBelt, setDan, setMaster, setGrandmaster, setSchoolLogoPath, setSchoolLogoUrl, setAccount, clearAccount } = accountSlice.actions;
+export { downloadAndCacheSchoolLogo };
 export default accountSlice.reducer;
