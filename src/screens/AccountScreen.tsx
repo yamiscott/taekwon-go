@@ -33,12 +33,20 @@ export default function AccountScreen() {
   const dispatch = useAppDispatch();
   const account = useAppSelector((s) => s.account);
 
+  // Use server data as source of truth, fallback to local data
+  const displayName = account.fullName || account.localName || '';
+  const displaySchool = account.school || account.localSchool || '';
+  const displayBelt = account.belt || account.localBelt || '';
+  const displayDan = account.dan || account.localDan || null;
+  const displayIsMaster = account.belt ? account.isMaster : account.localIsMaster;
+  const displayIsGrandmaster = account.belt ? account.isGrandmaster : account.localIsGrandmaster;
+
   const [edit, setEdit] = useState(false);
-  const [localName, setLocalName] = useState(typeof account.name === 'string' ? account.name : '');
-  const [localSchool, setLocalSchool] = useState(typeof account.school === 'string' ? account.school : '');
-  const [localBelt, setLocalBelt] = useState(typeof account.belt === 'string' ? account.belt : '');
-  const [localIsMaster, setLocalIsMaster] = useState(account.isMaster ?? false);
-  const [localIsGrandmaster, setLocalIsGrandmaster] = useState(account.isGrandmaster ?? false);
+  const [editName, setEditName] = useState(account.localName || '');
+  const [editSchool, setEditSchool] = useState(account.localSchool || '');
+  const [editBelt, setEditBelt] = useState(account.localBelt || '');
+  const [editIsMaster, setEditIsMaster] = useState(account.localIsMaster ?? false);
+  const [editIsGrandmaster, setEditIsGrandmaster] = useState(account.localIsGrandmaster ?? false);
 
   // Login modal state
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -47,6 +55,7 @@ export default function AccountScreen() {
   const [loginError, setLoginError] = useState('');
 
   const isLoggedIn = !!account.token;
+  const hasServerData = !!account.belt; // If server has belt data, use it
 
   const handleLogin = async () => {
     setLoginError('');
@@ -74,27 +83,27 @@ export default function AccountScreen() {
   };
 
   const save = () => {
-    dispatch(setName(localName || null));
-    dispatch(setSchool(localSchool || null));
-    dispatch(setBelt(localBelt || null));
-    if (localBelt && localBelt.startsWith('black_')) {
-      const num = parseInt(localBelt.split('_')[1], 10);
+    dispatch(setName(editName || null));
+    dispatch(setSchool(editSchool || null));
+    dispatch(setBelt(editBelt || null));
+    if (editBelt && editBelt.startsWith('black_')) {
+      const num = parseInt(editBelt.split('_')[1], 10);
       if (!Number.isNaN(num)) dispatch(setDan(num));
     } else dispatch(setDan(null));
 
     // set master/grandmaster from separate toggles
-    dispatch(setMaster(localIsMaster));
-    dispatch(setGrandmaster(localIsGrandmaster));
+    dispatch(setMaster(editIsMaster));
+    dispatch(setGrandmaster(editIsGrandmaster));
 
     setEdit(false);
   };
 
   const cancel = () => {
-    setLocalName(typeof account.name === 'string' ? account.name : '');
-    setLocalSchool(typeof account.school === 'string' ? account.school : '');
-    setLocalBelt(typeof account.belt === 'string' ? account.belt : '');
-    setLocalIsMaster(account.isMaster ?? false);
-    setLocalIsGrandmaster(account.isGrandmaster ?? false);
+    setEditName(account.localName || '');
+    setEditSchool(account.localSchool || '');
+    setEditBelt(account.localBelt || '');
+    setEditIsMaster(account.localIsMaster ?? false);
+    setEditIsGrandmaster(account.localIsGrandmaster ?? false);
     setEdit(false);
   };
 
@@ -210,62 +219,79 @@ export default function AccountScreen() {
         <Avatar.Icon size={200} icon="account" style={styles.avatar} />
         {!edit ? (
           <View style={styles.card}>
-            <Button mode="contained" onPress={() => setEdit(true)} style={styles.buttonRight}>
-              Edit
-            </Button>
+            {!hasServerData && (
+              <Button mode="contained" onPress={() => setEdit(true)} style={styles.buttonRight}>
+                Edit
+              </Button>
+            )}
             <Text style={styles.cardHeader}>{
-              typeof account.name === 'string' && account.name ? `${account.name}'s details` : "Student's details"
+              displayName ? `${displayName}'s details` : "Student's details"
             }</Text>
+
+            {hasServerData && account.address ? (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={styles.smallLabel}>Address</Text>
+                <Text style={[styles.fieldValue, { fontSize: 16, color: theme.colors.primary }]}>
+                  {account.address}
+                </Text>
+              </View>
+            ) : null}
 
             <View style={styles.colBetween}>
               <View style={{ flexGrow: 1, width: '100%' }}>
                 <Text style={styles.smallLabel}>School</Text>
                 <Text style={[styles.fieldValue, { color: theme.colors.primary }]}>
-                  {typeof account.school === 'string' && account.school ? account.school : 'N/A'}
+                  {displaySchool || 'N/A'}
                 </Text>
               </View>
               <View style={{ flexGrow: 1, width: '100%' }}>
                 <Text style={styles.smallLabel}>Belt</Text>
 
-                { (account.isGrandmaster || account.isMaster) ? (
+                { (displayIsGrandmaster || displayIsMaster) ? (
                   <Text style={[styles.masterText, { color: theme.colors.primary }]}>
-                    {account.isGrandmaster ? 'Grand Master' : account.isMaster ? 'Master' : ''}
+                    {displayIsGrandmaster ? 'Grand Master' : displayIsMaster ? 'Master' : ''}
                   </Text>
                 ) : null }
 
                 <Text style={[styles.fieldValue, { color: theme.colors.primary }]}>
-                  {BELTS.find((b) => b.value === account.belt)?.label ?? 'N/A'}
+                  {BELTS.find((b) => b.value === displayBelt)?.label ?? 'N/A'}
                 </Text>
 
-                {account.belt ? (
+                {displayBelt ? (
                   <View style={styles.beltBarWrapper}>
-                    <BeltBar belt={account.belt} />
+                    <BeltBar belt={displayBelt} />
                   </View>
                 ) : null}
 
-                {account.dan ? (
+                {displayDan ? (
                   <View style={styles.danContainer}>
-                    <Text style={[styles.danText, { color: theme.colors.primary }]}>{ordinal(account.dan)} Degree</Text>
+                    <Text style={[styles.danText, { color: theme.colors.primary }]}>{ordinal(displayDan)} Degree</Text>
                   </View>
                 ) : null} 
               </View>
             </View>
+
+            {hasServerData && (
+              <Text style={styles.serverDataNote}>
+                ℹ️ This data is managed by your school admin
+              </Text>
+            )}
 
             <View style={{ height: 12 }} />
           </View>
         ) : (
           <View style={styles.card}>
             <Text style={styles.fieldLabel}>Name</Text>
-            <TextInput value={localName} onChangeText={setLocalName} style={styles.input} />
+            <TextInput value={editName} onChangeText={setEditName} style={styles.input} />
 
             <Text style={styles.fieldLabel}>School</Text>
-            <TextInput value={localSchool} onChangeText={setLocalSchool} style={styles.input} />
+            <TextInput value={editSchool} onChangeText={setEditSchool} style={styles.input} />
 
             <Text style={styles.fieldLabel}>Belt</Text>
             <View style={styles.pickerContainer}>
               <Picker
-                selectedValue={localBelt}
-                onValueChange={(value) => setLocalBelt(value as string)}
+                selectedValue={editBelt}
+                onValueChange={(value) => setEditBelt(value as string)}
               >
                 <Picker.Item label="Select belt..." value="" />
                 {BELTS.map((b) => (
@@ -278,14 +304,14 @@ export default function AccountScreen() {
 
             <Text style={styles.fieldLabel}>Master</Text>
             <View style={styles.switchRow}>
-              <Switch value={localIsMaster} onValueChange={(v) => setLocalIsMaster(v)} />
-              <Text style={{ marginLeft: 8 }}>{localIsMaster ? 'Yes' : 'No'}</Text>
+              <Switch value={editIsMaster} onValueChange={(v) => setEditIsMaster(v)} />
+              <Text style={{ marginLeft: 8 }}>{editIsMaster ? 'Yes' : 'No'}</Text>
             </View>
 
             <Text style={styles.fieldLabel}>Grandmaster</Text>
             <View style={styles.switchRow}>
-              <Switch value={localIsGrandmaster} onValueChange={(v) => setLocalIsGrandmaster(v)} />
-              <Text style={{ marginLeft: 8 }}>{localIsGrandmaster ? 'Yes' : 'No'}</Text>
+              <Switch value={editIsGrandmaster} onValueChange={(v) => setEditIsGrandmaster(v)} />
+              <Text style={{ marginLeft: 8 }}>{editIsGrandmaster ? 'Yes' : 'No'}</Text>
             </View>
 
             <View style={{ height: 12 }} />
@@ -511,6 +537,13 @@ const styles = StyleSheet.create({
   },
   beltBarWrapper: {
     marginTop: 8,
+  },
+  serverDataNote: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 16,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   button: {
     alignSelf: 'flex-start',

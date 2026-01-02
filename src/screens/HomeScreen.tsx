@@ -37,7 +37,11 @@ const BELT_IMAGE_MAP: Record<string, ImageSourcePropType> = {
 export default function HomeScreen() {
   const account = useAppSelector((s) => s.account);
 
-  const welcomeText = account.name ? `Welcome, ${account.name}!` : 'Welcome!';
+  // Use server data as source of truth, fallback to local data
+  const displayName = account.fullName || account.localName || '';
+  const displayBelt = account.belt || account.localBelt || '';
+
+  const welcomeText = displayName ? `Welcome, ${displayName}!` : 'Welcome!';
 
   const getBeltImages = (belt?: string | null): ImageSourcePropType[] => {
     const images: ImageSourcePropType[] = [StudentBase];
@@ -45,7 +49,7 @@ export default function HomeScreen() {
     if (!belt) {
       // No belt selected: show white belt
       images.push(WhiteBelt);
-    } else if (belt.startsWith('black_')) {
+    } else if (belt.startsWith('black_') && belt !== 'black_stripe') {
       // Black belt: add StudentBlack-noBelt then Black-Belt
       images.push(StudentBlackNoBelt);
       images.push(BlackBelt);
@@ -60,7 +64,7 @@ export default function HomeScreen() {
     return images;
   };
 
-  const beltImages = getBeltImages(account.belt);
+  const beltImages = getBeltImages(displayBelt);
 
   return (
     <View style={styles.container}>

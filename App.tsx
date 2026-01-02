@@ -1,12 +1,15 @@
 import * as React from 'react';
+import { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Provider } from 'react-redux';
+import { Provider, useDispatch, useSelector } from 'react-redux';
 import { Provider as PaperProvider, DefaultTheme as PaperDefaultTheme } from 'react-native-paper';
 import BottomTabs from './src/navigation/BottomTabs';
 import AppHeader from './src/components/AppHeader';
 import store, { persistor } from './src/store';
 import { PersistGate } from 'redux-persist/integration/react';
+import { fetchCurrentUser } from './src/store/slices/accountSlice';
+import type { RootState, AppDispatch } from './src/store';
 
 const paperTheme = {
   ...PaperDefaultTheme,
@@ -21,6 +24,16 @@ const paperTheme = {
 const Stack = createNativeStackNavigator();
 
 function RootStack() {
+  const dispatch = useDispatch<AppDispatch>();
+  const token = useSelector((state: RootState) => state.account.token);
+
+  // Auto-fetch user data on app start if token exists
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchCurrentUser(token));
+    }
+  }, []); // Run only once on mount
+
   return (
     <Stack.Navigator>
       <Stack.Screen

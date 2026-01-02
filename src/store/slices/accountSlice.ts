@@ -11,13 +11,23 @@ type User = { id: string; name?: string; email?: string };
 
 interface AccountState {
   user: User | null;
-  name: string | null;
+  // Server-provided data (source of truth)
+  fullName: string | null;
+  address: string | null;
   email: string | null;
   school: string | null;
   belt: string | null; // e.g. 'white', 'orange_stripe', 'black_1', etc.
   dan: number | null; // 1..9 if black belt
   isMaster: boolean;
   isGrandmaster: boolean;
+  // Local-only data (fallback if server doesn't have it)
+  localName: string | null;
+  localSchool: string | null;
+  localBelt: string | null;
+  localDan: number | null;
+  localIsMaster: boolean;
+  localIsGrandmaster: boolean;
+  // Auth
   token: string | null;
   loading: boolean;
   error?: string | null;
@@ -25,13 +35,20 @@ interface AccountState {
 
 const initialState: AccountState = {
   user: null,
-  name: null,
+  fullName: null,
+  address: null,
   email: null,
   school: null,
   belt: null,
   dan: null,
   isMaster: false,
   isGrandmaster: false,
+  localName: null,
+  localSchool: null,
+  localBelt: null,
+  localDan: null,
+  localIsMaster: false,
+  localIsGrandmaster: false,
   token: null,
   loading: false,
   error: null,
@@ -95,45 +112,52 @@ const accountSlice = createSlice({
   reducers: {
     setUser(state, action: PayloadAction<User | null>) {
       state.user = action.payload;
-      if (action.payload?.name) state.name = action.payload.name;
+      if (action.payload?.name) state.localName = action.payload.name;
     },
     setName(state, action: PayloadAction<string | null>) {
-      state.name = action.payload;
+      state.localName = action.payload;
     },
     setSchool(state, action: PayloadAction<string | null>) {
-      state.school = action.payload;
+      state.localSchool = action.payload;
     },
     setBelt(state, action: PayloadAction<string | null>) {
-      state.belt = action.payload;
+      state.localBelt = action.payload;
     },
     setDan(state, action: PayloadAction<number | null>) {
-      state.dan = action.payload;
+      state.localDan = action.payload;
     },
     setMaster(state, action: PayloadAction<boolean>) {
-      state.isMaster = action.payload;
+      state.localIsMaster = action.payload;
     },
     setGrandmaster(state, action: PayloadAction<boolean>) {
-      state.isGrandmaster = action.payload;
+      state.localIsGrandmaster = action.payload;
     },
     setAccount(state, action: PayloadAction<Partial<AccountState>>) {
       const payload = action.payload;
       if (payload.user !== undefined) state.user = payload.user ?? null;
-      if (payload.name !== undefined) state.name = payload.name ?? null;
-      if (payload.school !== undefined) state.school = payload.school ?? null;
-      if (payload.belt !== undefined) state.belt = payload.belt ?? null;
-      if (payload.dan !== undefined) state.dan = payload.dan ?? null;
-      if (payload.isMaster !== undefined) state.isMaster = !!payload.isMaster;
-      if (payload.isGrandmaster !== undefined) state.isGrandmaster = !!payload.isGrandmaster;
+      if (payload.localName !== undefined) state.localName = payload.localName ?? null;
+      if (payload.localSchool !== undefined) state.localSchool = payload.localSchool ?? null;
+      if (payload.localBelt !== undefined) state.localBelt = payload.localBelt ?? null;
+      if (payload.localDan !== undefined) state.localDan = payload.localDan ?? null;
+      if (payload.localIsMaster !== undefined) state.localIsMaster = !!payload.localIsMaster;
+      if (payload.localIsGrandmaster !== undefined) state.localIsGrandmaster = !!payload.localIsGrandmaster;
     },
     clearAccount(state) {
       state.user = null;
-      state.name = null;
+      state.fullName = null;
+      state.address = null;
       state.email = null;
       state.school = null;
       state.belt = null;
       state.dan = null;
       state.isMaster = false;
       state.isGrandmaster = false;
+      state.localName = null;
+      state.localSchool = null;
+      state.localBelt = null;
+      state.localDan = null;
+      state.localIsMaster = false;
+      state.localIsGrandmaster = false;
       state.token = null;
     },
   },
@@ -161,9 +185,11 @@ const accountSlice = createSlice({
       state.loading = false;
       const userData = action.payload.user;
       state.user = userData;
-      // Ensure email and name are strings, not objects
+      
+      // Server-provided data (source of truth)
       state.email = typeof userData.email === 'string' ? userData.email : null;
-      state.name = typeof userData.name === 'string' ? userData.name : null;
+      state.fullName = typeof userData.fullName === 'string' ? userData.fullName : null;
+      state.address = typeof userData.address === 'string' ? userData.address : null;
       
       // Handle school - can be a string or an object with { _id, name }
       if (typeof userData.school === 'string') {
@@ -172,6 +198,19 @@ const accountSlice = createSlice({
         state.school = userData.school.name;
       } else {
         state.school = null;
+      }
+      
+      // Belt and rank data from server
+      state.belt = typeof userData.belt === 'string' ? userData.belt : null;
+      state.isMaster = !!userData.isMaster;
+      state.isGrandmaster = !!userData.isGrandmaster;
+      
+      // Calculate dan from belt if it's a black belt
+      if (state.belt && state.belt.startsWith('black_')) {
+        const num = parseInt(state.belt.split('_')[1], 10);
+        state.dan = !Number.isNaN(num) ? num : null;
+      } else {
+        state.dan = null;
       }
     });
     builder.addCase(fetchCurrentUser.rejected, (state, action) => {
