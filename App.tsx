@@ -8,7 +8,7 @@ import BottomTabs from './src/navigation/BottomTabs';
 import AppHeader from './src/components/AppHeader';
 import store, { persistor } from './src/store';
 import { PersistGate } from 'redux-persist/integration/react';
-import { fetchCurrentUser } from './src/store/slices/accountSlice';
+import { fetchCurrentUser, downloadSchoolLogo } from './src/store/slices/accountSlice';
 import type { RootState, AppDispatch } from './src/store';
 
 const paperTheme = {
@@ -26,6 +26,7 @@ const Stack = createNativeStackNavigator();
 function RootStack() {
   const dispatch = useDispatch<AppDispatch>();
   const token = useSelector((state: RootState) => state.account.token);
+  const schoolLogoUrl = useSelector((state: RootState) => state.account.schoolLogoUrl);
 
   // Auto-fetch user data on app start if token exists
   useEffect(() => {
@@ -35,6 +36,13 @@ function RootStack() {
       });
     }
   }, [token, dispatch]);
+
+  // Download school logo when schoolLogoUrl is available
+  useEffect(() => {
+    if (schoolLogoUrl) {
+      dispatch(downloadSchoolLogo(schoolLogoUrl));
+    }
+  }, [schoolLogoUrl, dispatch]);
 
   return (
     <Stack.Navigator>

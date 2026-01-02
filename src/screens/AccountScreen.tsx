@@ -25,7 +25,7 @@ import {
   setGrandmaster,
   clearAccount,
 } from '../store/slices/accountSlice';
-import { login, fetchCurrentUser } from '../store/slices/accountSlice';
+import { login, fetchCurrentUser, downloadSchoolLogo } from '../store/slices/accountSlice';
 import { BELTS } from '../constants/belts';
 
 export default function AccountScreen() {
@@ -67,13 +67,21 @@ export default function AccountScreen() {
     try {
       const result = await dispatch(login({ email: loginEmail, password: loginPassword })).unwrap();
       // Login successful, fetch user data
+      console.log('Login successful, fetching user data...222');
       if (result.token) {
-        await dispatch(fetchCurrentUser(result.token)).unwrap();
+        const userData = await dispatch(fetchCurrentUser(result.token)).unwrap();
+        // Download school logo if available
+        const user = userData.user;
+        if (user?.school && typeof user.school === 'object' && 'logoUrl' in user.school && user.school.logoUrl) {
+          console.log('Downloading school logo for URL:', user.school.logoUrl);
+          dispatch(downloadSchoolLogo(user.school.logoUrl));
+        }
       }
       setShowLoginModal(false);
       setLoginEmail('');
       setLoginPassword('');
     } catch (error) {
+      console.log('Login failed with error:', error);
       setLoginError(typeof error === 'string' ? error : 'Login failed');
     }
   };

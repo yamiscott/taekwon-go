@@ -40,6 +40,7 @@ export default function HomeScreen() {
   // Use server data as source of truth, fallback to local data
   const displayName = account.fullName || account.localName || '';
   const displayBelt = account.belt || account.localBelt || '';
+  const schoolLogoPath = account.schoolLogoPath;
 
   const welcomeText = displayName ? `Welcome, ${displayName}!` : 'Welcome!';
 
@@ -68,6 +69,13 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      {schoolLogoPath && (
+        <Image
+          source={{ uri: `file://${schoolLogoPath}` }}
+          style={styles.schoolLogo}
+        />
+      )}
+      
       <Text style={styles.welcome}>{welcomeText}</Text>
 
       <View style={styles.studentContainer}>
@@ -107,16 +115,16 @@ const styles = StyleSheet.create({
   },
   schoolLogo: {
     position: 'absolute',
-    top: 20,
+    top: 120,
     right: 20,
-    width: 80,
-    height: 80,
+    width: 200,
+    height: 200,
     resizeMode: 'contain',
     borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    zIndex: 10,
+    zIndex: -2,
   },
   noLogoText: {
     position: 'absolute',
