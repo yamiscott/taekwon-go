@@ -325,16 +325,33 @@ const accountSlice = createSlice({
       }
       
       // Belt and rank data from server
-      state.belt = typeof userData.belt === 'string' ? userData.belt : null;
+      // Belt can be a string or an object with { _id, name, kup, level, order, color, isDan, isPuma }
+      if (typeof userData.belt === 'string') {
+        state.belt = userData.belt;
+      } else if (userData.belt && typeof userData.belt === 'object' && 'name' in userData.belt) {
+        const beltName = userData.belt.name;
+        
+        // Convert belt name to underscore format
+        if (beltName.startsWith('Black Grade ')) {
+          // Handle black belts: "Black Grade 1" -> "black_1"
+          const gradeNum = beltName.replace('Black Grade ', '');
+          state.belt = `black_${gradeNum}`;
+          state.dan = parseInt(gradeNum, 10);
+        } else {
+          // Convert regular belts: "Yellow Stripe" -> "yellow_stripe"
+          state.belt = beltName.toLowerCase().replace(/\s+/g, '_');
+        }
+      } else {
+        state.belt = null;
+      }
+      
       state.isMaster = !!userData.isMaster;
       state.isGrandmaster = !!userData.isGrandmaster;
       
-      // Calculate dan from belt if it's a black belt
-      if (state.belt && state.belt.startsWith('black_')) {
+      // Calculate dan from belt if it's a black belt (if not already set)
+      if (!state.dan && state.belt && state.belt.startsWith('black_')) {
         const num = parseInt(state.belt.split('_')[1], 10);
         state.dan = !Number.isNaN(num) ? num : null;
-      } else {
-        state.dan = null;
       }
     });
     builder.addCase(fetchCurrentUser.rejected, (state, action) => {
